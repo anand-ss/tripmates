@@ -7,7 +7,6 @@ import '../../../core/constants/app_constants.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
@@ -47,11 +46,10 @@ class AuthService {
   }
 
   Future<UserModel?> signInWithGoogle() async {
-    final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) return null;
-    final googleAuth = await googleUser.authentication;
+    await GoogleSignIn.instance.initialize();
+    final googleAccount = await GoogleSignIn.instance.authenticate();
+    final googleAuth = googleAccount.authentication;
     final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
     final userCredential = await _auth.signInWithCredential(credential);
@@ -60,9 +58,9 @@ class AuthService {
     if (existing != null) return existing;
     final user = UserModel(
       id: uid,
-      name: googleUser.displayName ?? '',
-      email: googleUser.email,
-      photoUrl: googleUser.photoUrl,
+      name: googleAccount.displayName ?? '',
+      email: googleAccount.email,
+      photoUrl: googleAccount.photoUrl,
       createdAt: DateTime.now(),
     );
     await _firestore
@@ -77,7 +75,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
+    try { await GoogleSignIn.instance.signOut(); } catch (_) {}
     await _auth.signOut();
   }
 
